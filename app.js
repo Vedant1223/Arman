@@ -1,64 +1,57 @@
-//app.js
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const QRCode = require('qrcode');
-
+const path = require('path');
 
 const app = express();
-const port =  8081;
+const port = 8081;
 
+// Middleware setup
 app.use(bodyParser.json());
 app.use(cors());
-app.use(router);
 
-//controller.js
+// Serve static client files
+app.use(express.static(path.join(__dirname, 'client')));
 
-
-const router = express.Router();
-
-router.post('/generate-qr', controller.generateQR);
-
-module.exports = router;
-
-
-
-
-
-exports.formatData = (data) => {
-	const qrCodeText = `Product ID: ${data.id}, Price: $${data.price}`;
-	return qrCodeText;
+// Helper function to format QR code text
+const formatData = (data) => {
+    return `Product ID: ${data.id}, Price: $${data.price}`;
 };
 
-exports.generateQRCode = async (qrCodeText) => {
-	const options = {
-		errorCorrectionLevel: 'M',
-		type: 'image/png',
-		margin: 1
-	};
+// Helper function to generate QR code
+const generateQRCode = async (qrCodeText) => {
+    const options = {
+        errorCorrectionLevel: 'M',
+        type: 'image/png',
+        margin: 1,
+    };
 
-	const qrCodeBuffer = await QRCode.toBuffer(qrCodeText, options);
-	return qrCodeBuffer;
+    return await QRCode.toBuffer(qrCodeText, options);
 };
 
-exports.generateQR = async (req, res) => {
-	try {
-		const { data } = req.body;
+// Route to generate QR code
+app.post('/generate-qr', async (req, res) => {
+    try {
+        const { data } = req.body;
 
-		const qrCodeText = service.formatData(data);
+        if (!data || !data.id || !data.price) {
+            return res.status(400).send({ error: 'Invalid data provided' });
+        }
 
-		const qrCodeBuffer = await service.generateQRCode(qrCodeText);
+        const qrCodeText = formatData(data);
+        const qrCodeBuffer = await generateQRCode(qrCodeText);
 
-		res.setHeader('Content-Disposition', 'attachment; filename=qrcode.png');
-		res.type('image/png').send(qrCodeBuffer);
-	} catch (err) {
-		console.error('Error generating QR code:', err);
-		res.status(500).send({ error: 'Internal Server Error' });
-	}
-};
+        res.setHeader('Content-Disposition', 'attachment; filename=qrcode.png');
+        res.type('image/png').send(qrCodeBuffer);
+    } catch (err) {
+        console.error('Error generating QR code:', err);
+        res.status(500).send({ error: 'Internal Server Error' });
+    }
+});
 
-
+// Start the server
 app.listen(port, () => {
-	console.log(`Server listening on port ${port}`);
+    console.log(`Server listening at http://localhost:${port}`);
+    console.log(`Client is available at http://localhost:${port}/index.html`);
 });
